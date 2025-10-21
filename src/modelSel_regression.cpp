@@ -595,7 +595,7 @@ pt2margFun set_marginalFunction(lmObject *lm) {
       }
     }
   } else if ((family)==2) { //Two-piece Normal errors
-    if (priorcode >= 10) Rf_error("Group priors not implemented for Two-piece Normal errors");
+    if (priorcode >= 10) Rf_error("This prior/info criterion is not implemented for Two-piece Normal errors");
     if (priorcode==0) {
       ans= pmomMargSkewNormU;
     } else if (priorcode==1) {
@@ -606,7 +606,7 @@ pt2margFun set_marginalFunction(lmObject *lm) {
       Rf_error("Zellner prior with two-piece Normal errors not currently implemented");
     }
   } else if ((family)==3) { //Laplace errors
-    if (priorcode >= 10) Rf_error("Group priors not implemented for Laplace errors");
+    if (priorcode >= 10) Rf_error("This prior/info criterion is not implemented for Laplace errors");
     if (priorcode==0) {
       ans= pmomMargLaplU;
     } else if (priorcode==1) {
@@ -617,7 +617,7 @@ pt2margFun set_marginalFunction(lmObject *lm) {
       Rf_error("Zellner prior with Laplace errors not currently implemented");
     }
   } else if ((family)==4) { //Asymmetric Laplace errors
-    if (priorcode >= 10) Rf_error("Group priors not implemented for asymmetric Laplace errors");
+    if (priorcode >= 10) Rf_error("This prior/info criterion is not implemented for asymmetric Laplace errors");
     if (priorcode==0) {
       ans= pmomMargAlaplU;
     } else if (priorcode==1) {
@@ -628,7 +628,7 @@ pt2margFun set_marginalFunction(lmObject *lm) {
       Rf_error("Zellner prior with asymmetric Laplace errors not currently implemented");
     }
   } else if ((family)==0) { //Normal + Two-piece Normal + Laplace + Two-piece Laplace errors
-    if (priorcode >= 10) Rf_error("Group priors with family='auto' not currently implemented");
+    if (priorcode >= 10) Rf_error("This prior/info criterion is not implemented for family='auto'");
     if (priorcode==0) {
       ans= pmomMargTP;
     } else if (priorcode==1) {
@@ -656,7 +656,7 @@ pt2modelpriorFun set_priorFunction(int *prDelta, int *prConstr, int *family) {
   // - prDelta: 0 for uniform, 1 for binomial, 2 for beta-binomial
   pt2modelpriorFun ans=nullptr;
   if (*family != 0) {
-    if (*prDelta != *prConstr) Rf_error("priorConstraints must be of the same family as priorDelta (e.g. both Binomial, both Beta-Binomial, both Complexity priors)");
+    if (*prDelta != *prConstr) Rf_error("priorConstraints must be of the same family as priorModel (e.g. both Binomial, both Beta-Binomial, both Complexity priors)");
     if (*prDelta==0) { ans= unifPrior; } else if (*prDelta==1) { ans= binomPrior; } else if (*prDelta==2) { ans= betabinPrior; } else if (*prDelta==3) { ans= complexityPrior; }
   } else {
     if (*prDelta==0) { ans= unifPriorTP; } else if (*prDelta==1) { ans= binomPriorTP; } else if (*prDelta==2) { ans= betabinPriorTP; } else if (*prDelta==3) { ans= complexityPrior; }
@@ -1154,7 +1154,7 @@ void set_f2opt_pars(double *m, double **S, double *sumy2, crossprodmat *XtX, dou
 // - models: binary matrix containing all models to be enumerated, structured as a vector
 // - knownphi: is residual variance phi known?
 // - priorCoef: 0 for product MOM, 1 for product iMOM, 2 for product eMOM
-// - priorDelta: 0 for uniform, 1 for binomial, 2 for binomial with beta hyper-prior for success prob
+// - priorModel: 0 for uniform, 1 for binomial, 2 for binomial with beta hyper-prior for success prob
 // - niter: number of Gibbs iterations
 // - ndeltaini: length of deltaini
 // - deltaini: vector with indexes of covariates initially in the model (both deltaini and its indexes must be indexed at 0)
@@ -1168,7 +1168,7 @@ void set_f2opt_pars(double *m, double **S, double *sumy2, crossprodmat *XtX, dou
 // - postProb: unnormalized posterior prob of each visited model (log scale)
 
 // [[Rcpp::export]]
-SEXP modelSelectionEnumCI(SEXP Snmodels, SEXP Smodels, SEXP Sknownphi, SEXP Sfamily, SEXP SpriorCoef, SEXP SpriorGroup, SEXP Sn, SEXP Sp, SEXP Sy, SEXP Suncens, SEXP Ssumy2, SEXP Ssumy, SEXP Ssumlogyfact, SEXP Sx, SEXP Scolsumsx, SEXP ShasXtX, SEXP SXtX, SEXP SytX, SEXP Smethod, SEXP Sadjoverdisp, SEXP Shesstype, SEXP SoptimMethod, SEXP Soptim_maxit, SEXP Sthinit, SEXP Susethinit, SEXP SB, SEXP Salpha, SEXP Slambda, SEXP Sphi, SEXP Stau, SEXP Staugroup, SEXP Staualpha, SEXP Sfixatanhalpha, SEXP Sr, SEXP Sa, SEXP SpriorDelta, SEXP SprDeltap, SEXP SparprDeltap, SEXP SpriorConstr, SEXP SprConstrp, SEXP SparprConstrp, SEXP Sgroups, SEXP Sngroups, SEXP Snvaringroup, SEXP Sconstraints, SEXP Sinvconstraints, SEXP SDmat, SEXP Sverbose) {
+SEXP modelSelectionEnumCI(SEXP Snmodels, SEXP Smodels, SEXP Sknownphi, SEXP Sfamily, SEXP SpriorCoef, SEXP SpriorGroup, SEXP Sn, SEXP Sp, SEXP Sy, SEXP Suncens, SEXP Ssumy2, SEXP Ssumy, SEXP Ssumlogyfact, SEXP Sx, SEXP Scolsumsx, SEXP ShasXtX, SEXP SXtX, SEXP SytX, SEXP Smethod, SEXP Sadjoverdisp, SEXP Shesstype, SEXP SoptimMethod, SEXP Soptim_maxit, SEXP Sthinit, SEXP Susethinit, SEXP SB, SEXP Salpha, SEXP Slambda, SEXP Sphi, SEXP Stau, SEXP Staugroup, SEXP Staualpha, SEXP Sfixatanhalpha, SEXP Sr, SEXP Sa, SEXP SpriorModel, SEXP SprDeltap, SEXP SparprDeltap, SEXP SpriorConstr, SEXP SprConstrp, SEXP SparprConstrp, SEXP Sgroups, SEXP Sngroups, SEXP Snvaringroup, SEXP Sconstraints, SEXP Sinvconstraints, SEXP SDmat, SEXP Sverbose) {
 
   bool hasXtX= LOGICAL(ShasXtX)[0];
   int i, j, idxj, logscale=1, *postMode, mycols, mycols2, nuncens, *nconstraints, *ninvconstraints, ngroupsconstr=0, *isgroup, usethinit= INTEGER(Susethinit)[0], maxvars_empty=-1;
@@ -1224,7 +1224,7 @@ SEXP modelSelectionEnumCI(SEXP Snmodels, SEXP Smodels, SEXP Sknownphi, SEXP Sfam
 
   lm= new lmObject(INTEGER(SpriorCoef), INTEGER(SpriorGroup), INTEGER(Sfamily), INTEGER(Sn), &nuncens, INTEGER(Sp), REAL(Sy), INTEGER(Suncens), REAL(Ssumy2), REAL(Ssumy), REAL(Ssumlogyfact), REAL(Sx), REAL(Scolsumsx), XtX, REAL(SytX), INTEGER(Smethod), INTEGER(Sadjoverdisp), INTEGER(Shesstype), INTEGER(SoptimMethod), INTEGER(Soptim_maxit), &usethinit, thinit, INTEGER(SB), REAL(Salpha),REAL(Slambda), INTEGER(Sknownphi), REAL(Sphi), REAL(Stau), REAL(Staugroup), REAL(Staualpha), REAL(Sfixatanhalpha), INTEGER(Sr), REAL(Sa), REAL(SDmat), Pmat, REAL(SprDeltap), REAL(SparprDeltap), REAL(SprConstrp), REAL(SparprConstrp), &maxvars_empty, &logscale, &offset, INTEGER(Sgroups), isgroup, INTEGER(Sngroups), &ngroupsconstr, INTEGER(Snvaringroup), nconstraints, ninvconstraints, XtXuncens, ytXuncens);
 
-  modelSelectionEnum(postMode, postModeProb, postProb, INTEGER(Snmodels), INTEGER(Smodels), INTEGER(SpriorDelta), INTEGER(SpriorConstr), INTEGER(Sverbose), lm);
+  modelSelectionEnum(postMode, postModeProb, postProb, INTEGER(Snmodels), INTEGER(Smodels), INTEGER(SpriorModel), INTEGER(SpriorConstr), INTEGER(Sverbose), lm);
 
   delete lm;
   //delete_marginalPars(&pars);
@@ -1308,7 +1308,7 @@ void modelSelectionEnum(int *postMode, double *postModeProb, double *postProb, i
 //Input parameters
 // - knownphi: is residual variance phi known?
 // - priorCoef: 0 for product MOM, 1 for product iMOM, 2 for product eMOM
-// - priorDelta: 0 for uniform, 1 for binomial, 2 for binomial with beta hyper-prior for success prob
+// - priorModel: 0 for uniform, 1 for binomial, 2 for binomial with beta hyper-prior for success prob
 // - niter: number of Gibbs iterations
 // - ndeltaini: length of deltaini
 // - deltaini: vector with indexes of covariates initially in the model (both deltaini and its indexes must be indexed at 0)
@@ -1326,7 +1326,7 @@ void modelSelectionEnum(int *postMode, double *postModeProb, double *postProb, i
 // - postProb: unnormalized posterior prob of each visited model (log scale)
 
 // [[Rcpp::export]]
-SEXP modelSelectionGibbsCI(SEXP SpostModeini, SEXP SpostModeiniProb, SEXP Sknownphi, SEXP Sfamily, SEXP SpriorCoef, SEXP SpriorGroup, SEXP Sniter, SEXP Sthinning, SEXP Sburnin, SEXP Sndeltaini, SEXP Sdeltaini, SEXP Sincludevars, SEXP Sn, SEXP Sp, SEXP Sy, SEXP Suncens, SEXP Ssumy2, SEXP Ssumy, SEXP Ssumlogyfact, SEXP Sx, SEXP Scolsumsx, SEXP ShasXtX, SEXP SXtX, SEXP SytX, SEXP Smethod, SEXP Sadjoverdisp, SEXP Shesstype, SEXP SoptimMethod, SEXP Soptim_maxit, SEXP Sthinit, SEXP Susethinit, SEXP SB, SEXP Salpha, SEXP Slambda, SEXP Sphi, SEXP Stau, SEXP Staugroup, SEXP Staualpha, SEXP Sfixatanhalpha, SEXP Sr, SEXP Sa, SEXP SpriorDelta, SEXP SprDeltap, SEXP SparprDeltap, SEXP SpriorConstr, SEXP SprConstrp, SEXP SparprConstrp, SEXP Sgroups, SEXP Sngroups, SEXP Snvaringroup, SEXP Sconstraints, SEXP Sinvconstraints, SEXP Smaxvars, SEXP SDmat, SEXP Sverbose) {
+SEXP modelSelectionGibbsCI(SEXP SpostModeini, SEXP SpostModeiniProb, SEXP Sknownphi, SEXP Sfamily, SEXP SpriorCoef, SEXP SpriorGroup, SEXP Sniter, SEXP Sthinning, SEXP Sburnin, SEXP Sndeltaini, SEXP Sdeltaini, SEXP Sincludevars, SEXP Sn, SEXP Sp, SEXP Sy, SEXP Suncens, SEXP Ssumy2, SEXP Ssumy, SEXP Ssumlogyfact, SEXP Sx, SEXP Scolsumsx, SEXP ShasXtX, SEXP SXtX, SEXP SytX, SEXP Smethod, SEXP Sadjoverdisp, SEXP Shesstype, SEXP SoptimMethod, SEXP Soptim_maxit, SEXP Sthinit, SEXP Susethinit, SEXP SB, SEXP Salpha, SEXP Slambda, SEXP Sphi, SEXP Stau, SEXP Staugroup, SEXP Staualpha, SEXP Sfixatanhalpha, SEXP Sr, SEXP Sa, SEXP SpriorModel, SEXP SprDeltap, SEXP SparprDeltap, SEXP SpriorConstr, SEXP SprConstrp, SEXP SparprConstrp, SEXP Sgroups, SEXP Sngroups, SEXP Snvaringroup, SEXP Sconstraints, SEXP Sinvconstraints, SEXP Smaxvars, SEXP SDmat, SEXP Sverbose) {
 
   bool hasXtX= LOGICAL(ShasXtX)[0];
   int i, j, idxj, logscale=1, mcmc2save, *postSample, *postMode, mycols, mycols2, *nconstraints, *ninvconstraints, nuncens, ngroupsconstr=0, *isgroup, usethinit=INTEGER(Susethinit)[0];
@@ -1389,7 +1389,7 @@ SEXP modelSelectionGibbsCI(SEXP SpostModeini, SEXP SpostModeiniProb, SEXP Sknown
 
   lm= new lmObject(INTEGER(SpriorCoef), INTEGER(SpriorGroup), INTEGER(Sfamily), INTEGER(Sn), &nuncens, INTEGER(Sp), REAL(Sy), INTEGER(Suncens), REAL(Ssumy2), REAL(Ssumy), REAL(Ssumlogyfact), REAL(Sx), REAL(Scolsumsx), XtX, REAL(SytX), INTEGER(Smethod), INTEGER(Sadjoverdisp), INTEGER(Shesstype), INTEGER(SoptimMethod), INTEGER(Soptim_maxit), &usethinit, thinit, INTEGER(SB), REAL(Salpha),REAL(Slambda), INTEGER(Sknownphi), REAL(Sphi), REAL(Stau), REAL(Staugroup), REAL(Staualpha), REAL(Sfixatanhalpha), INTEGER(Sr), REAL(Sa), REAL(SDmat), Pmat, REAL(SprDeltap), REAL(SparprDeltap), REAL(SprConstrp), REAL(SparprConstrp), INTEGER(Smaxvars), &logscale, &offset, INTEGER(Sgroups), isgroup, INTEGER(Sngroups), &ngroupsconstr, INTEGER(Snvaringroup), nconstraints, ninvconstraints, XtXuncens, ytXuncens);
 
-  modelSelectionGibbs(postSample, margpp, postMode, postModeProb, postProb, INTEGER(SpriorDelta), INTEGER(SpriorConstr), INTEGER(Sniter), INTEGER(Sthinning), INTEGER(Sburnin), INTEGER(Sndeltaini), INTEGER(Sdeltaini), INTEGER(Sincludevars), &constraints, &invconstraints, INTEGER(Sverbose), lm);
+  modelSelectionGibbs(postSample, margpp, postMode, postModeProb, postProb, INTEGER(SpriorModel), INTEGER(SpriorConstr), INTEGER(Sniter), INTEGER(Sthinning), INTEGER(Sburnin), INTEGER(Sndeltaini), INTEGER(Sdeltaini), INTEGER(Sincludevars), &constraints, &invconstraints, INTEGER(Sverbose), lm);
 
   delete lm;
   free_dvector(thinit, 0,mycols2+1);   free_ivector(isgroup, 0, INTEGER(Sp)[0]);
@@ -1926,13 +1926,13 @@ void modelSelectionGibbs(int *postSample, double *margpp, int *postMode, double 
 */
 
 
-//greedyVarSelC: greedy search for posterior mode in variable selection.
+//greedyVarSelC: greedy coordinate descent algorithm search for posterior mode in variable selection.
 //               Similar to Gibbs sampling, except that deterministic updates are made iff there is an increase in post model prob
 //               The scheme proceeds until no variable is included/excluded or niter iterations are reached
 // Input arguments: same as in modelSelectionC.
 
 // [[Rcpp::export]]
-SEXP greedyVarSelCI(SEXP Sknownphi, SEXP Sfamily, SEXP SpriorCoef, SEXP SpriorGroup, SEXP Sniter, SEXP Sndeltaini, SEXP Sdeltaini, SEXP Sincludevars, SEXP Sn, SEXP Sp, SEXP Sy, SEXP Suncens, SEXP Ssumy2, SEXP Ssumy, SEXP Ssumlogyfact, SEXP Sx, SEXP Scolsumsx, SEXP ShasXtX, SEXP SXtX, SEXP SytX, SEXP Smethod, SEXP Sadjoverdisp, SEXP Shesstype, SEXP SoptimMethod, SEXP Soptim_maxit, SEXP Sthinit, SEXP Susethinit, SEXP SB, SEXP Salpha, SEXP Slambda, SEXP Sphi, SEXP Stau, SEXP Staugroup, SEXP Staualpha, SEXP Sfixatanhalpha, SEXP Sr, SEXP Sa, SEXP SpriorDelta, SEXP SprDeltap, SEXP SparprDeltap, SEXP SpriorConstr, SEXP SprConstrp, SEXP SparprConstrp, SEXP Sgroups, SEXP Sngroups, SEXP Snvaringroup, SEXP Sconstraints, SEXP Sinvconstraints, SEXP Smaxvars, SEXP SDmat, SEXP Sverbose) {
+SEXP greedyVarSelCI(SEXP Sknownphi, SEXP Sfamily, SEXP SpriorCoef, SEXP SpriorGroup, SEXP Sniter, SEXP Sndeltaini, SEXP Sdeltaini, SEXP Sincludevars, SEXP Sn, SEXP Sp, SEXP Sy, SEXP Suncens, SEXP Ssumy2, SEXP Ssumy, SEXP Ssumlogyfact, SEXP Sx, SEXP Scolsumsx, SEXP ShasXtX, SEXP SXtX, SEXP SytX, SEXP Smethod, SEXP Sadjoverdisp, SEXP Shesstype, SEXP SoptimMethod, SEXP Soptim_maxit, SEXP Sthinit, SEXP Susethinit, SEXP SB, SEXP Salpha, SEXP Slambda, SEXP Sphi, SEXP Stau, SEXP Staugroup, SEXP Staualpha, SEXP Sfixatanhalpha, SEXP Sr, SEXP Sa, SEXP SpriorModel, SEXP SprDeltap, SEXP SparprDeltap, SEXP SpriorConstr, SEXP SprConstrp, SEXP SparprConstrp, SEXP Sgroups, SEXP Sngroups, SEXP Snvaringroup, SEXP Sconstraints, SEXP Sinvconstraints, SEXP Smaxvars, SEXP SDmat, SEXP Sverbose) {
 
   bool hasXtX= LOGICAL(ShasXtX)[0];
   int i, j, idxj, logscale=1, mycols, *postMode, *nconstraints, *ninvconstraints, nuncens, ngroupsconstr=0, *isgroup, usethinit=INTEGER(Susethinit)[0];
@@ -1984,7 +1984,7 @@ SEXP greedyVarSelCI(SEXP Sknownphi, SEXP Sfamily, SEXP SpriorCoef, SEXP SpriorGr
 
   lm= new lmObject(INTEGER(SpriorCoef), INTEGER(SpriorGroup), INTEGER(Sfamily), INTEGER(Sn), &nuncens, INTEGER(Sp), REAL(Sy), INTEGER(Suncens), REAL(Ssumy2), REAL(Ssumy), REAL(Ssumlogyfact), REAL(Sx), REAL(Scolsumsx), XtX, REAL(SytX), INTEGER(Smethod), INTEGER(Sadjoverdisp), INTEGER(Shesstype), INTEGER(SoptimMethod), INTEGER(Soptim_maxit), &usethinit, thinit, INTEGER(SB), REAL(Salpha), REAL(Slambda), INTEGER(Sknownphi), REAL(Sphi), REAL(Stau), REAL(Staugroup), REAL(Staualpha), REAL(Sfixatanhalpha), INTEGER(Sr), REAL(Sa), REAL(SDmat), Pmat, REAL(SprDeltap), REAL(SparprDeltap), REAL(SprConstrp), REAL(SparprConstrp), INTEGER(Smaxvars), &logscale, &offset, INTEGER(Sgroups), isgroup, INTEGER(Sngroups), &ngroupsconstr, INTEGER(Snvaringroup), nconstraints, ninvconstraints, XtXuncens, ytXuncens);
 
-  greedyVarSelC(postMode,postModeProb,INTEGER(SpriorDelta),INTEGER(SpriorConstr),INTEGER(Sniter),INTEGER(Sndeltaini),INTEGER(Sdeltaini),INTEGER(Sincludevars),&constraints,&invconstraints,INTEGER(Sverbose),lm);
+  greedyVarSelC(postMode,postModeProb,INTEGER(SpriorModel),INTEGER(SpriorConstr),INTEGER(Sniter),INTEGER(Sndeltaini),INTEGER(Sdeltaini),INTEGER(Sincludevars),&constraints,&invconstraints,INTEGER(Sverbose),lm);
 
   delete lm;
   free_dvector(thinit, 0,mycols+1); free_ivector(isgroup, 0, INTEGER(Sp)[0]);
@@ -2019,7 +2019,7 @@ void greedyVarSelC(int *postMode, double *postModeProb, int *prDelta, int *prCon
   for (j=1, firstingroup[0]=0; j<ngroups; j++) { firstingroup[j]= firstingroup[j-1] + nvaringroup[j-1]; }
 
   //Initialize
-  if (*verbose==1) Rprintf(" Greedy searching posterior mode... ");
+  if (*verbose==1) Rprintf(" Running coordinate descent algorithm to find best model... ");
   ivector_to_spmat(deltaini, ndeltaini, sel);
   *postModeProb= integrals->getJoint(sel,lm,nullptr);
   //*postModeProb= marginalFunction(sel,lm,nullptr,nullptr,nullptr,nullptr) + priorFunction(sel,lm);

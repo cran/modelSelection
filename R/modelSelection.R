@@ -420,9 +420,9 @@ defaultmom= function(outcometype, family, verbose=TRUE) {
 
 
 #### General model selection routines
-modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), constraints, center=TRUE, scale=TRUE, enumerate, includevars=rep(FALSE,ncol(x)), models, maxvars, niter=5000, thinning=1, burnin=round(niter/10), family='normal', priorCoef, priorGroup, priorDelta=modelbbprior(1,1), priorConstraints, priorVar=igprior(.01,.01), priorSkew=momprior(tau=0.348), neighbours, phi, deltaini=rep(FALSE,ncol(x)), initSearch='greedy', method='auto', adj.overdisp='intercept', hess='asymp', optimMethod, optim_maxit, initpar='none', B=10^5, XtXprecomp= ifelse(ncol(x)<10^4,TRUE,FALSE), verbose=TRUE) {
+modelSelection <- function(y, x, data, smoothterms, nknots=9, groups, constraints, center=TRUE, scale=TRUE, enumerate, includevars, models, maxvars, niter=5000, thinning=1, burnin=round(niter/10), family='normal', priorCoef, priorGroup, priorModel=modelbbprior(1,1), priorConstraints, priorVar=igprior(.01,.01), priorSkew=momprior(tau=0.348), neighbours, phi, deltaini, initSearch='CDA', method='auto', adj.overdisp='intercept', hess='asymp', optimMethod, optim_maxit, initpar='none', B=10^5, XtXprecomp, verbose=TRUE) {
 # Input
-# - y: either formula with the regression equation or vector with response variable. If a formula arguments x, groups & constraints are ignored
+# - y: either formula with the regression equation or vector with response variable. If a formula, arguments x, groups & constraints are ignored
 # - x: design matrix with all potential predictors
 # - data: data frame where the variables indicated in y (if it's a formula) and smoothterms can be found
 # - smoothterms: formula indicating variables for which non-linear effects (splines) should be considered
@@ -440,13 +440,13 @@ modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), 
 # - family: assumed residual distribution ('normal','twopiecenormal','laplace','twopiecelaplace')
 # - priorCoef: prior distribution for the coefficients. Must be object of class 'msPriorSpec' with slot priorType set to 'coefficients'. Possible values for slot priorDistr are 'pMOM', 'piMOM' and 'peMOM'.
 # - priorGroup: prior on grouped coefficients, as indicated by groups
-# - priorDelta: prior on model indicator space. Must be object of class 'msPriorSpec' with slot priorType set to 'modelIndicator'. Possible values for slot priorDistr are 'uniform' and 'binomial'
+# - priorModel: prior on model indicator space. Must be object of class 'msPriorSpec' with slot priorType set to 'modelIndicator'. Possible values for slot priorDistr are 'uniform' and 'binomial'
 # - priorVar: prior on residual variance. Must be object of class 'msPriorSpec' with slot priorType set to 'nuisancePars'. Slot priorDistr must be equal to 'invgamma'.
 # - priorSkew: prior on residual skewness parameter. Ignored unless family=='twopiecenormal' or 'twopiecelaplace'
 # - neighbours: Only used if priorCoef is an icarplus prior. neighbours is a list with the same length as the design matrix. Its entry j should be a vector indicating the neighbours of j, and have 0 length if j has no neighbours.
 # - phi: residual variance. Typically this is unknown and therefore left missing. If specified argument priorVar is ignored.
 # - deltaini: logical vector of length ncol(x) indicating which coefficients should be initialized to be non-zero. Defaults to all variables being excluded from the model
-# - initSearch: algorithm to refine deltaini. initSearch=='greedy' uses a greedy Gibbs sampling search. initSearch=='SCAD' sets deltaini to the non-zero elements in a SCAD fit with cross-validated regularization parameter. initSearch=='none' leaves deltaini unmodified.
+# - initSearch: algorithm to refine deltaini. initSearch=='CDA' uses a greedy coordinate descent algorithm. initSearch=='SCAD' sets deltaini to the non-zero elements in a SCAD fit with cross-validated regularization parameter. initSearch=='none' leaves deltaini unmodified.
 # - method: method to compute marginal densities. method=='Laplace' for Laplace approx, method=='MC' for Importance Sampling, method=='Hybrid' for Hybrid Laplace-IS (the latter method is only used for piMOM prior with unknown residual variance phi), method='ALA' (former method=='plugin')
 # - adj.overdisp: for method=='ALA' it indicates the over-dispersion adjustment to be made in models where the dispersion parameter is fixed, as in logistic and Poisson regression. adj.overdisp='none' for no adjustment (not recommended, particularly for Poisson models). adj.overdisp='intercept' to estimate over-dispersion from the intercept-only model. ad.overdisp='residuals' from the Pearson residuals of each model (slightly higher computational cost)
 # - hess: only used for asymmetric Laplace errors. When hess=='asymp' the asymptotic hessian is used to compute the Laplace approximation to the marginal likelihood, when hess=='asympDiagAdj' a diagonal adjustment to the asymptotic Hessian is used
@@ -466,6 +466,7 @@ modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), 
   tmp <- formatInputdata(y=y,x=x,data=data,smoothterms=smoothterms,nknots=nknots,family=family)
   x <- tmp$x; y <- tmp$y; formula <- tmp$formula;
   splineDegree <- tmp$splineDegree
+  if (missing(groups)) groups <- 1:ncol(x)
   if (!is.null(tmp$groups)) groups <- tmp$groups
   if (length(groups) != ncol(x)) stop(paste("groups has the wrong length. It should have length",ncol(x)))
   hasgroups <- tmp$hasgroups; isgroups <- tmp$isgroups
@@ -475,7 +476,8 @@ modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), 
   call <- list(formula=formula, smoothterms= NULL, splineDegree=splineDegree, nknots=nknots)
   if (!missing(smoothterms)) call$smoothterms <- smoothterms
   p= ncol(x); n= length(y)
-      if (is.numeric(includevars)) {
+  if (missing(includevars)) includevars= rep(FALSE,ncol(x))
+  if (is.numeric(includevars)) {
       tmp= rep(FALSE,p)
       if (max(includevars) > p) stop(paste("includevars contains index ",max(includevars)," but the design matrix only has ",p," columns",sep=""))
       tmp[includevars]= TRUE
@@ -538,6 +540,7 @@ modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), 
 
   niter <- as.integer(niter); burnin <- as.integer(burnin); thinning <- as.integer(thinning); B <- as.integer(B)
   sumy2 <- as.double(sum(ystd^2)); sumy <- as.double(sum(ystd)); ytX <- as.vector(matrix(ystd,nrow=1) %*% xstd); colsumsx <- as.double(colSums(xstd))
+  if (missing(XtXprecomp)) XtXprecomp <- ifelse(ncol(xstd)<10^4,TRUE,FALSE)
   if (XtXprecomp) {
       XtX= t(xstd) %*% xstd
       hasXtX= as.logical(TRUE)
@@ -557,8 +560,8 @@ modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), 
   alpha=tmp$alpha; lambda=tmp$lambda; taualpha=tmp$taualpha; fixatanhalpha=tmp$fixatanhalpha
   priorCoef= tmp$priorCoef; priorGroup= tmp$priorGroup
     
-  priorConstraints <- defaultpriorConstraints(priorDelta, priorConstraints)
-  tmp= formatmsPriorsModel(priorDelta=priorDelta, priorConstraints=priorConstraints, constraints=constraints)
+  priorConstraints <- defaultpriorConstraints(priorModel, priorConstraints)
+  tmp= formatmsPriorsModel(priorModel=priorModel, priorConstraints=priorConstraints, constraints=constraints)
   prDelta=tmp$prDelta; prDeltap=tmp$prDeltap; parprDeltap=tmp$parprDeltap
   prConstr=tmp$prConstr; prConstrp= tmp$prConstrp; parprConstrp= tmp$parprConstrp
 
@@ -570,7 +573,7 @@ modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), 
     includevars <- as.integer(includevars)
     if (familyint==0) { postMode <- rep(as.integer(0),p+2) } else { postMode <- rep(as.integer(0),p) }
     postModeProb <- double(1)
-    if (initSearch=='greedy') {
+    if (initSearch=='CDA') {
       niterGreed <- as.integer(100)
       ans= greedyVarSelCI(knownphi,familygreedy,prior,priorgr,niterGreed,ndeltaini,deltaini,includevars,n,p,ystd,uncens,sumy2,sumy,sumlogyfact,xstd,colsumsx,hasXtX,XtX,ytX,method,adj.overdisp,hesstype,optimMethod,optim_maxit,thinit,usethinit,B,alpha,lambda,phi,tau,taugroup,taualpha,fixatanhalpha,r,a,prDelta,prDeltap,parprDeltap,prConstr,prConstrp,parprConstrp,groups,ngroups,nvaringroup,constraints,invconstraints,maxvars,Dmat,as.integer(verbose))
       postMode <- ans[[1]]; postModeProb <- ans[[2]]
@@ -641,7 +644,7 @@ modelSelection <- function(y, x, data, smoothterms, nknots=9, groups=1:ncol(x), 
     names(margpp) <- c(nn,'family.normal','family.tpnormal','family.laplace','family.tplaplace')
   }
 
-  priors= list(priorCoef=priorCoef, priorGroup=priorGroup, priorDelta=priorDelta, priorConstraints=priorConstraints, priorVar=priorVar, priorSkew=priorSkew)
+  priors= list(priorCoef=priorCoef, priorGroup=priorGroup, priorModel=priorModel, priorConstraints=priorConstraints, priorVar=priorVar, priorSkew=priorSkew)
   if (length(uncens)>0) { ystd[ordery]= ystd; uncens[ordery]= uncens; ystd= survival::Surv(time=ystd, event= uncens); xstd[ordery,]= xstd }
   names(constraints)= paste('group',0:(length(constraints)-1))
 
@@ -787,6 +790,7 @@ createDesign <- function(formula, data, smoothterms, subset, na.action, splineDe
     mt <- if (missing(data)) terms(formula) else terms(formula, data = data)
     mf$formula <- mt
     mf <- eval(mf, parent.frame())
+    if (any(is.na(mf))) stop('Either the outcome or the covariates contain NAs. Please remove the NAs.')
     if (missing(na.action)) {
         naa = getOption("na.action", "na.fail")
         na.action = get(naa)
@@ -1235,47 +1239,47 @@ formatmsPriorsMarg <- function(priorCoef, priorGroup, priorVar, priorSkew, n) {
   return(ans)
 }
 
-defaultpriorConstraints <- function(priorDelta, priorConstraints) {
+defaultpriorConstraints <- function(priorModel, priorConstraints) {
   if (missing(priorConstraints)) {
-    if ((priorDelta@priorDistr=='binomial') && ('p' %in% names(priorDelta@priorPars)) && (length(priorDelta@priorPars[['p']]) > 1)) {
+    if ((priorModel@priorDistr=='binomial') && ('p' %in% names(priorModel@priorPars)) && (length(priorModel@priorPars[['p']]) > 1)) {
       priorConstraints <- modelbinomprior(p=0.5)
     } else {
-      priorConstraints <- priorDelta
+      priorConstraints <- priorModel
     }
   }
   return(priorConstraints)
 }
 
 #Routine to format modelSelection prior distribution parameters in model space
-#Input: priorDelta, priorConstraints, constraints
+#Input: priorModel, priorConstraints, constraints
 #Output: model space prior (prDelta, prDeltap, parprDeltap) and constraints (prConstr,prConstrp,parprConstrp)
-formatmsPriorsModel <- function(priorDelta, priorConstraints, constraints) {
+formatmsPriorsModel <- function(priorModel, priorConstraints, constraints) {
   #Prior on model space (parameters not subject to hierarchical constraints)
   n_unconstrained <- sum(sapply(constraints, function(x) length(x) == 0))
   n_constrained <- length(constraints) - n_unconstrained
-  if (priorDelta@priorDistr=='uniform') {
+  if (priorModel@priorDistr=='uniform') {
     prDelta <- as.integer(0)
     prDeltap <- as.double(0)
     parprDeltap <- double(2)
-  } else if (priorDelta@priorDistr=='binomial') {
-    if ('p' %in% names(priorDelta@priorPars)) {
+  } else if (priorModel@priorDistr=='binomial') {
+    if ('p' %in% names(priorModel@priorPars)) {
       prDelta <- as.integer(1)
-      prDeltap <- as.double(priorDelta@priorPars[['p']])
+      prDeltap <- as.double(priorModel@priorPars[['p']])
       if (any(prDeltap<=0) | any(prDeltap>1)) stop("For the binomial model prior the inclusion probabilities p must lie in (0,1]")
-      if ((length(prDeltap) != 1) & (length(prDeltap) != n_unconstrained)) stop("p in priorDelta must be a scalar or have length=number of unconstrained variables")
+      if ((length(prDeltap) != 1) & (length(prDeltap) != n_unconstrained)) stop("p in priorModel must be a scalar or have length=number of unconstrained variables")
       parprDeltap <- as.double(length(prDeltap))
     } else {
       prDelta <- as.integer(2)
       prDeltap <- as.double(.5)
-      parprDeltap <- as.double(priorDelta@priorPars[c('alpha.p','beta.p')])
+      parprDeltap <- as.double(priorModel@priorPars[c('alpha.p','beta.p')])
     }
-  } else if (priorDelta@priorDistr=='complexity') {
+  } else if (priorModel@priorDistr=='complexity') {
       prDelta <- as.integer(3)
-      prDeltap <- as.double(priorDelta@priorPars['c'])
-      if (prDeltap<0) stop("c must be >0 for priorDelta@priorDistr=='complexity'")
+      prDeltap <- as.double(priorModel@priorPars['c'])
+      if (prDeltap<0) stop("c must be >0 for priorModel@priorDistr=='complexity'")
       parprDeltap <- double(2)
   } else {
-    stop('Prior specified in priorDelta not recognized')
+    stop('Prior specified in priorModel not recognized')
   }
   #Prior on model space (parameters subject to hierarchical constraints)
   if (priorConstraints@priorDistr=='uniform') {
